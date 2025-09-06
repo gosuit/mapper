@@ -25,28 +25,72 @@ var specificTypes = []reflect.Type{
 type parsedObject struct {
 	setters map[string]setter
 	getters map[string]getter
+
+	mapFrom map[string]setter
+	mapTo   map[string]getter
 }
 
 func parseObject(obj reflect.Type) *parsedObject {
-	from, to := getPaths(obj, make([]int, 0), "")
+	fields := getPaths(obj, make([]int, 0), "")
 
 	parsed := &parsedObject{
 		setters: make(map[string]setter),
 		getters: make(map[string]getter),
+		mapFrom: make(map[string]setter),
+		mapTo:   make(map[string]getter),
 	}
 
-	for k, v := range from {
+	for k, v := range fields {
 		parsed.setters[k] = getSetter(v)
+		parsed.getters[k] = getGetter(v)
+	}
+
+	from, to := getMapPaths(obj, make([]int, 0), "")
+
+	for k, v := range from {
+		parsed.mapFrom[k] = getSetter(v)
 	}
 
 	for k, v := range to {
-		parsed.getters[k] = getGetter(v)
+		parsed.mapTo[k] = getGetter(v)
 	}
 
 	return parsed
 }
 
-func getPaths(obj reflect.Type, basePath []int, baseKey string) (map[string][]int, map[string][]int) {
+func getPaths(obj reflect.Type, basePath []int, baseKey string) map[string][]int {
+	result := make(map[string][]int)
+
+	for i := range obj.NumField() {
+		field := obj.Field(i)
+
+		key := field.Name
+
+		if baseKey != "" {
+			key = baseKey + "." + key
+		}
+
+		path := make([]int, 0)
+
+		if len(basePath) != 0 {
+			path = append(basePath, i)
+		} else {
+			path = append(path, i)
+		}
+
+		if field.Type.Kind() != reflect.Struct || slices.Contains(specificTypes, field.Type) {
+			result[key] = path
+		} else {
+			toAdd := getPaths(field.Type, path, key)
+
+			maps.Copy(result, toAdd)
+		}
+	}
+
+	return result
+}
+
+func getMapPaths(obj reflect.Type, basePath []int, baseKey string) (map[string][]int, map[string][]int) {
 	from := make(map[string][]int)
 	to := make(map[string][]int)
 
@@ -93,7 +137,7 @@ func getPaths(obj reflect.Type, basePath []int, baseKey string) (map[string][]in
 			if field.Type.Kind() != reflect.Struct || slices.Contains(specificTypes, field.Type) {
 				from[fromTag] = path
 			} else {
-				toAdd, _ := getPaths(field.Type, path, fromTag)
+				toAdd, _ := getMapPaths(field.Type, path, fromTag)
 
 				maps.Copy(from, toAdd)
 			}
@@ -107,7 +151,7 @@ func getPaths(obj reflect.Type, basePath []int, baseKey string) (map[string][]in
 			if field.Type.Kind() != reflect.Struct || slices.Contains(specificTypes, field.Type) {
 				to[toTag] = path
 			} else {
-				_, toAdd := getPaths(field.Type, path, toTag)
+				_, toAdd := getMapPaths(field.Type, path, toTag)
 
 				maps.Copy(to, toAdd)
 			}
