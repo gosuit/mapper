@@ -13,13 +13,13 @@ type Mapper interface {
 func New() Mapper {
 	return &mapper{
 		converters: make(map[reflect.Type]map[reflect.Type]converter),
-		objects:    make(map[reflect.Type]*parsedObject),
+		objects:    make(map[reflect.Type]*parsedMapObject),
 	}
 }
 
 type mapper struct {
 	converters map[reflect.Type]map[reflect.Type]converter
-	objects    map[reflect.Type]*parsedObject
+	objects    map[reflect.Type]*parsedMapObject
 	mu         sync.Mutex
 }
 
@@ -81,7 +81,7 @@ func (m *mapper) registerObject(obj reflect.Type) {
 		return
 	}
 
-	m.objects[obj] = parseObject(obj)
+	m.objects[obj] = parseMapObject(obj)
 }
 
 func (m *mapper) registerPair(from reflect.Type, to reflect.Type) error {

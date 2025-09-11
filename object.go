@@ -25,7 +25,7 @@ var specificTypes = []reflect.Type{
 	reflect.TypeFor[url.URL](),
 }
 
-type parsedObject struct {
+type parsedMapObject struct {
 	setters map[string]setter
 	getters map[string]getter
 	methods map[string]methodGetter
@@ -44,8 +44,8 @@ type mapDestination struct {
 	funcSetter string
 }
 
-func parseObject(obj reflect.Type) *parsedObject {
-	parsed := &parsedObject{
+func parseMapObject(obj reflect.Type) *parsedMapObject {
+	parsed := &parsedMapObject{
 		setters: make(map[string]setter),
 		getters: make(map[string]getter),
 		methods: make(map[string]methodGetter),
@@ -240,6 +240,12 @@ type rawMapDestination struct {
 	indexPath []int
 	fieldDst  string
 	funcDst   string
+}
+
+type parsedBuildObject struct{}
+
+func parseBuildObject(obj reflect.Type) *parsedBuildObject {
+	return nil
 }
 
 type setter = func(model reflect.Value, value reflect.Value) error
