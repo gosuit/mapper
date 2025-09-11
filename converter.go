@@ -28,25 +28,55 @@ func (m *mapper) getPairConversions(from reflect.Type, to reflect.Type) ([]conve
 
 	conversions := make([]converter, 0)
 
-	for k, setter := range parsedTo.mapFrom {
+	for k, mapSource := range parsedTo.mapFrom {
 		getter, ok := parsedFrom.getters[k]
 		if !ok {
-			return nil, errors.New("getter not found")
+			methodGetter, ok := parsedFrom.methods[mapSource.funcGetter]
+			if !ok {
+				return nil, errors.New("getter not found")
+			}
+
+			conversions = append(conversions, func(from reflect.Value, to reflect.Value) error {
+				getter := methodGetter(from)
+				values := getter.Call(make([]reflect.Value, 0))
+
+				if len(values) < 1 {
+					return errors.New("invalid output")
+				}
+
+				return mapSource.setter(to, values[0])
+			})
+
+			continue
 		}
 
 		conversions = append(conversions, func(from reflect.Value, to reflect.Value) error {
-			return setter(to, getter(from))
+			return mapSource.setter(to, getter(from))
 		})
 	}
 
-	for k, getter := range parsedFrom.mapTo {
+	for k, mapDestination := range parsedFrom.mapTo {
 		setter, ok := parsedTo.setters[k]
 		if !ok {
-			return nil, errors.New("setter not found")
+			methodSetter, ok := parsedTo.methods[mapDestination.funcSetter]
+			if !ok {
+				return nil, errors.New("setter not found")
+			}
+
+			conversions = append(conversions, func(from reflect.Value, to reflect.Value) error {
+				setter := methodSetter(to)
+				value := mapDestination.getter(from)
+
+				setter.Call([]reflect.Value{value})
+
+				return nil
+			})
+
+			continue
 		}
 
 		conversions = append(conversions, func(from reflect.Value, to reflect.Value) error {
-			return setter(to, getter(from))
+			return setter(to, mapDestination.getter(from))
 		})
 	}
 
