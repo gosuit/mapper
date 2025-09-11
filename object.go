@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+// Add error handling in some cases. Analyze and refactor.
+
 const (
 	mapTag     = "map"
 	mapFromTag = "map-from"
@@ -33,12 +35,12 @@ type parsedObject struct {
 }
 
 type mapSource struct {
-	set        setter
+	setter     setter
 	funcGetter string
 }
 
 type mapDestination struct {
-	get        getter
+	getter     getter
 	funcSetter string
 }
 
@@ -69,14 +71,14 @@ func parseObject(obj reflect.Type) *parsedObject {
 
 	for _, src := range mapSrc {
 		parsed.mapFrom[src.fieldSrc] = mapSource{
-			set:        getSetter(src.indexPath),
+			setter:     getSetter(src.indexPath),
 			funcGetter: src.funcSrc,
 		}
 	}
 
 	for _, src := range mapDst {
 		parsed.mapTo[src.fieldDst] = mapDestination{
-			get:        getGetter(src.indexPath),
+			getter:     getGetter(src.indexPath),
 			funcSetter: src.funcDst,
 		}
 	}
@@ -117,6 +119,8 @@ func getPaths(obj reflect.Type, basePath []int, baseKey string) map[string][]int
 }
 
 func getMethods(obj reflect.Type) map[string]int {
+	obj = reflect.PointerTo(obj)
+
 	result := make(map[string]int)
 
 	for i := range obj.NumMethod() {
@@ -329,7 +333,7 @@ func getGetterBase(indexPath []int) fnBase {
 
 func getMethodGetterBase(index int) fnBase {
 	return func(args []reflect.Value) (results []reflect.Value) {
-		model := args[0].Interface().(reflect.Value)
+		model := args[0].Interface().(reflect.Value).Addr()
 
 		results = append(results, reflect.ValueOf(model.Method(index)))
 
